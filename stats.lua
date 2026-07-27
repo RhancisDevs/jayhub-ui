@@ -1,4 +1,3 @@
--- up
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 
@@ -22,9 +21,12 @@ local Labels = {}
 
 local ACCENT = Color3.fromRGB(90, 170, 255)
 local BG = Color3.fromRGB(24, 24, 28)
-local BG_SECTION = Color3.fromRGB(32, 32, 38)
 local TEXT_DIM = Color3.fromRGB(170, 170, 178)
 local TEXT_MAIN = Color3.fromRGB(235, 235, 240)
+
+local COLOR_GOOD = Color3.fromRGB(120, 220, 140)   -- idle/success
+local COLOR_BUSY = Color3.fromRGB(255, 200, 90)    -- working
+local COLOR_BAD  = Color3.fromRGB(255, 110, 110)   -- error
 
 local function formatNumber(n)
     n = tonumber(n) or 0
@@ -33,23 +35,38 @@ local function formatNumber(n)
     return formatted:gsub("^,", "")
 end
 
--- Builds a "Label: Value" row where the label is dim and the value pops
-local function setRow(label, key, value)
-    label.Text = ("%s: "):format(key)
+local function rgbTag(c)
+    return ("rgb(%d,%d,%d)"):format(math.floor(c.R*255), math.floor(c.G*255), math.floor(c.B*255))
+end
+
+-- Renders "emoji Label: Value" with dim label + bright value
+local function setRow(label, emoji, key, value, valueColor)
     label.RichText = true
-    label.Text = ("<font color=\"rgb(170,170,178)\">%s: </font><font color=\"rgb(235,235,240)\">%s</font>")
-        :format(key, tostring(value))
+    label.Text = ("%s <font color=\"%s\">%s: </font><font color=\"%s\">%s</font>")
+        :format(emoji, rgbTag(TEXT_DIM), key, rgbTag(valueColor or TEXT_MAIN), tostring(value))
+end
+
+-- Picks a color for the Status row based on its content
+local function statusColor(status)
+    local s = status:lower()
+    if s:find("error") or s:find("fail") then
+        return COLOR_BAD
+    elseif s:find("buying") or s:find("waiting") or s:find("init") then
+        return COLOR_BUSY
+    else
+        return COLOR_GOOD
+    end
 end
 
 function HUD:Refresh()
-    setRow(Labels.Guild, "Guild", State.Guild)
-    setRow(Labels.GuildPoints, "Guild Points", formatNumber(State.GuildPoints))
-    setRow(Labels.MyPoints, "My Points", formatNumber(State.MyPoints))
+    setRow(Labels.Guild, "🏰", "Guild", State.Guild)
+    setRow(Labels.GuildPoints, "⭐", "Guild Points", formatNumber(State.GuildPoints), ACCENT)
+    setRow(Labels.MyPoints, "🎯", "My Points", formatNumber(State.MyPoints), ACCENT)
 
-    setRow(Labels.Status, "Status", State.Status)
-    setRow(Labels.Bought, "Bought", State.Bought)
-    setRow(Labels.Waiting, "Waiting", State.Waiting)
-    setRow(Labels.Hop, "Hop", State.Hop)
+    setRow(Labels.Status, "⚙️", "Status", State.Status, statusColor(State.Status))
+    setRow(Labels.Bought, "🛒", "Bought", State.Bought, COLOR_GOOD)
+    setRow(Labels.Waiting, "⏳", "Waiting", State.Waiting, COLOR_BUSY)
+    setRow(Labels.Hop, "🌐", "Hop", State.Hop)
 end
 
 local function createLabel(parent, y, size)
@@ -70,7 +87,7 @@ local function createLabel(parent, y, size)
     return label
 end
 
-local function createSectionHeader(parent, y, text)
+local function createSectionHeader(parent, y, emoji, text)
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, -24, 0, 14)
     label.Position = UDim2.new(0, 12, 0, y)
@@ -79,7 +96,7 @@ local function createSectionHeader(parent, y, text)
     label.TextSize = 11
     label.TextColor3 = ACCENT
     label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Text = text:upper()
+    label.Text = ("%s  %s"):format(emoji, text:upper())
     label.Parent = parent
     return label
 end
@@ -97,27 +114,26 @@ function HUD:Init()
     gui.IgnoreGuiInset = true
     gui.Parent = CoreGui
 
-    -- Outer shadow wrapper for depth
-    local shadow = Instance.new("ImageLabel")
-    shadow.Name = "Shadow"
-    shadow.BackgroundTransparency = 1
-    shadow.Image = "rbxassetid://1316045217" -- soft drop shadow
-    shadow.ImageColor3 = Color3.new(0,0,0)
-    shadow.ImageTransparency = 0.4
-    shadow.ScaleType = Enum.ScaleType.Slice
-    shadow.SliceCenter = Rect.new(10,10,118,118)
-    shadow.Size = UDim2.new(1, 30, 1, 30)
-    shadow.Position = UDim2.new(0, -15, 0, -15)
-    shadow.ZIndex = 0
-
     local frame = Instance.new("Frame")
     frame.Name = "Main"
-    frame.Size = UDim2.fromOffset(260, 214)
-    frame.Position = UDim2.new(0, 20, 0.5, -107)
+    frame.Size = UDim2.fromOffset(270, 232)
+    frame.Position = UDim2.new(0, 20, 0.5, -116)
     frame.BackgroundColor3 = BG
     frame.BorderSizePixel = 0
     frame.Parent = gui
 
+    -- Drop shadow for depth
+    local shadow = Instance.new("ImageLabel")
+    shadow.Name = "Shadow"
+    shadow.BackgroundTransparency = 1
+    shadow.Image = "rbxassetid://1316045217"
+    shadow.ImageColor3 = Color3.new(0, 0, 0)
+    shadow.ImageTransparency = 0.4
+    shadow.ScaleType = Enum.ScaleType.Slice
+    shadow.SliceCenter = Rect.new(10, 10, 118, 118)
+    shadow.Size = UDim2.new(1, 30, 1, 30)
+    shadow.Position = UDim2.new(0, -15, 0, -15)
+    shadow.ZIndex = 0
     shadow.Parent = frame
 
     local corner = Instance.new("UICorner")
@@ -158,7 +174,7 @@ function HUD:Init()
     title.Parent = titleBar
 
     -- Guild section
-    createSectionHeader(frame, 40, "Guild")
+    createSectionHeader(frame, 40, "🏰", "Guild")
     Labels.Guild = createLabel(frame, 56)
     Labels.GuildPoints = createLabel(frame, 76)
     Labels.MyPoints = createLabel(frame, 96)
@@ -171,15 +187,11 @@ function HUD:Init()
     divider.Parent = frame
 
     -- Activity section
-    createSectionHeader(frame, 132, "Activity")
+    createSectionHeader(frame, 132, "📊", "Activity")
     Labels.Status = createLabel(frame, 148)
     Labels.Bought = createLabel(frame, 168)
     Labels.Waiting = createLabel(frame, 188)
-    Labels.Hop = createLabel(frame, 188) -- placeholder, repositioned below
-
-    -- Recompute layout to fit Hop under Waiting cleanly
-    frame.Size = UDim2.fromOffset(260, 232)
-    Labels.Hop.Position = UDim2.new(0, 12, 0, 208)
+    Labels.Hop = createLabel(frame, 208)
 
     self:Refresh()
 end
