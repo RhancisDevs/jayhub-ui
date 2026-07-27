@@ -1,144 +1,160 @@
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
 
-local StatusUI = {}
+local LocalPlayer = Players.LocalPlayer
 
-local gui
-local frame
-local statusLabel
+local HUD = {}
+HUD.__index = HUD
 
-local function makeDraggable(frame)
-    local dragging = false
-    local dragInput
-    local dragStart
-    local startPos
+local State = {
+    Guild = "-",
+    GuildPoints = 0,
+    MyPoints = 0,
 
-    local function update(input)
-        local delta = input.Position - dragStart
+    Status = "Initializing...",
+    Bought = 0,
+    Waiting = 0,
+    Hop = "-"
+}
 
-        frame.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
-    end
+local Labels = {}
 
-    frame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-            or input.UserInputType == Enum.UserInputType.Touch then
+local function formatNumber(n)
+    n = tonumber(n) or 0
 
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
+    local s = tostring(math.floor(n))
 
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
+    repeat
+        s = s:gsub("^(-?%d+)(%d%d%d)", "%1,%2")
+    until s:gsub("^(-?%d+)(%d%d%d)", "%1,%2") == s
 
-    frame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement
-            or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input == dragInput then
-            update(input)
-        end
-    end)
+    return s
 end
 
-function StatusUI:Init()
-    self:Destroy()
+function HUD:Refresh()
+    Labels.Guild.Text = ("Guild: %s"):format(State.Guild)
+    Labels.GuildPoints.Text = ("Guild Points: %s"):format(formatNumber(State.GuildPoints))
+    Labels.MyPoints.Text = ("My Points: %s"):format(formatNumber(State.MyPoints))
 
-    local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+    Labels.Status.Text = ("Status: %s"):format(State.Status)
+    Labels.Bought.Text = ("Bought: %d"):format(State.Bought)
+    Labels.Waiting.Text = ("Waiting: %d"):format(State.Waiting)
+    Labels.Hop.Text = ("Hop: %s"):format(State.Hop)
+end
 
-    gui = Instance.new("ScreenGui")
-    gui.Name = "JayHubStatusUI"
+local function createLabel(parent, y)
+    local label = Instance.new("TextLabel")
+
+    label.Size = UDim2.new(1, -16, 0, 18)
+    label.Position = UDim2.new(0, 8, 0, y)
+
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.new(1,1,1)
+
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Font = Enum.Font.Code
+    label.TextSize = 15
+
+    label.Parent = parent
+
+    return label
+end
+
+function HUD:Init()
+
+    local old = CoreGui:FindFirstChild("JayHubHUD")
+
+    if old then
+        old:Destroy()
+    end
+
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "JayHubHUD"
     gui.ResetOnSpawn = false
     gui.IgnoreGuiInset = true
-    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    gui.DisplayOrder = 999999
-    gui.Parent = playerGui
+    gui.Parent = CoreGui
 
-    frame = Instance.new("Frame")
+    local frame = Instance.new("Frame")
     frame.Name = "Main"
-    frame.Size = UDim2.fromOffset(280, 95)
-    frame.Position = UDim2.fromOffset(20, 20)
-    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    frame.Size = UDim2.fromOffset(250,170)
+    frame.Position = UDim2.new(0,20,0.5,-85)
+    frame.BackgroundColor3 = Color3.fromRGB(35,35,35)
     frame.BorderSizePixel = 0
     frame.Parent = gui
 
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 10)
+    corner.CornerRadius = UDim.new(0,8)
     corner.Parent = frame
 
     local stroke = Instance.new("UIStroke")
-    stroke.Color = Color3.fromRGB(0, 170, 255)
-    stroke.Thickness = 1
+    stroke.Color = Color3.fromRGB(70,70,70)
     stroke.Parent = frame
 
     local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1,0,0,24)
     title.BackgroundTransparency = 1
-    title.Size = UDim2.new(1, 0, 0, 30)
     title.Font = Enum.Font.GothamBold
-    title.Text = "Jay Hub"
-    title.TextSize = 18
-    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.TextSize = 16
+    title.TextColor3 = Color3.new(1,1,1)
+    title.Text = "🐾 Jay Hub"
     title.Parent = frame
 
-    local divider = Instance.new("Frame")
-    divider.AnchorPoint = Vector2.new(0.5, 0)
-    divider.Position = UDim2.new(0.5, 0, 0, 30)
-    divider.Size = UDim2.new(1, -20, 0, 1)
-    divider.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
-    divider.BorderSizePixel = 0
-    divider.Parent = frame
+    local line1 = Instance.new("Frame")
+    line1.Size = UDim2.new(1,-10,0,1)
+    line1.Position = UDim2.new(0,5,0,26)
+    line1.BorderSizePixel = 0
+    line1.BackgroundColor3 = Color3.fromRGB(80,80,80)
+    line1.Parent = frame
 
-    local statusTitle = Instance.new("TextLabel")
-    statusTitle.BackgroundTransparency = 1
-    statusTitle.Position = UDim2.fromOffset(10, 38)
-    statusTitle.Size = UDim2.new(1, -20, 0, 18)
-    statusTitle.Font = Enum.Font.GothamBold
-    statusTitle.Text = "Status"
-    statusTitle.TextSize = 13
-    statusTitle.TextColor3 = Color3.fromRGB(180, 180, 180)
-    statusTitle.TextXAlignment = Enum.TextXAlignment.Left
-    statusTitle.Parent = frame
+    Labels.Guild = createLabel(frame,30)
+    Labels.GuildPoints = createLabel(frame,50)
+    Labels.MyPoints = createLabel(frame,70)
 
-    statusLabel = Instance.new("TextLabel")
-    statusLabel.BackgroundTransparency = 1
-    statusLabel.Position = UDim2.fromOffset(10, 58)
-    statusLabel.Size = UDim2.new(1, -20, 0, 24)
-    statusLabel.Font = Enum.Font.Gotham
-    statusLabel.Text = "Idle"
-    statusLabel.TextSize = 16
-    statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    statusLabel.TextXAlignment = Enum.TextXAlignment.Left
-    statusLabel.Parent = frame
+    local line2 = line1:Clone()
+    line2.Position = UDim2.new(0,5,0,92)
+    line2.Parent = frame
 
-    makeDraggable(frame)
+    Labels.Status = createLabel(frame,96)
+    Labels.Bought = createLabel(frame,116)
+    Labels.Waiting = createLabel(frame,136)
+    Labels.Hop = createLabel(frame,156)
+
+    self:Refresh()
 end
 
-function StatusUI:SetStatus(text)
-    if statusLabel then
-        statusLabel.Text = text
-    end
+function HUD:SetGuild(name)
+    State.Guild = name or "-"
+    self:Refresh()
 end
 
-function StatusUI:Destroy()
-    if gui then
-        gui:Destroy()
-        gui = nil
-        frame = nil
-        statusLabel = nil
-    end
+function HUD:SetGuildPoints(points)
+    State.GuildPoints = points or 0
+    self:Refresh()
 end
 
-return StatusUI
+function HUD:SetMyPoints(points)
+    State.MyPoints = points or 0
+    self:Refresh()
+end
+
+function HUD:SetStatus(status)
+    State.Status = status or "-"
+    self:Refresh()
+end
+
+function HUD:SetBought(count)
+    State.Bought = count or 0
+    self:Refresh()
+end
+
+function HUD:SetWaiting(count)
+    State.Waiting = count or 0
+    self:Refresh()
+end
+
+function HUD:SetHop(method)
+    State.Hop = method or "-"
+    self:Refresh()
+end
+
+return setmetatable({}, HUD)
