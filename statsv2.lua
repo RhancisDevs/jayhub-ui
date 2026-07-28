@@ -258,7 +258,7 @@ function HUD:Init()
     title.TextSize = 16
     title.TextColor3 = TEXT_MAIN
     title.TextXAlignment = Enum.TextXAlignment.Left
-    title.Text = "🐾  Jay Hub"
+    title.Text = "🐾  Jay Hub Pet Snipe"
     title.Parent = titleBar
 
     createSectionHeader(frame, 40, "🏰", "Guild")
