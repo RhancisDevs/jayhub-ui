@@ -450,4 +450,9 @@ function HUD:SetPrice(price)
     self:Refresh()
 end
 
+function HUD:AddBought(amount)
+    State.Bought += amount or 1
+    self:Refresh()
+end
+
 return setmetatable({}, HUD)
